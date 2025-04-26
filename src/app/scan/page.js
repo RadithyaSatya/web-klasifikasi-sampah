@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import axios from 'axios';
+
 
 const Scan = () => {
   const videoRef = useRef(null);
@@ -38,46 +40,36 @@ const Scan = () => {
     };
   }, []);
 
+
   const processImage = async (file) => {
     setIsLoading(true);
     setError(null);
     setResult(null);
-  
+
     try {
       const formData = new FormData();
       formData.append("file", file);
-  
-      const apiBaseUrl =
-        process.env.NODE_ENV === "development"
-          ? "/model" 
-          : process.env.NEXT_PUBLIC_API_MODEL_URL;
-  
-      const response = await fetch(`${apiBaseUrl}/predict`, {
-        method: "POST",
-        body: formData,
+
+      const response = await axios.post(`https://web-production-c8bf2.up.railway.app/predict`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
-  
-      const contentType = response.headers.get("content-type");
-  
-      if (!response.ok || !contentType.includes("application/json")) {
-        const text = await response.text(); 
-        console.error("Unexpected response:", text);
-        throw new Error("Server mengembalikan response yang tidak valid.");
-      }
-  
-      const data = await response.json();
-  
+
+      // Axios automatically parses JSON if the response is in JSON format
+      const data = response.data;
+
       const kategori = data.kategori?.toLowerCase();
       if (kategori === "organik") setBorderColor("border-[#B9FF66]");
       else if (kategori === "non-organik") setBorderColor("border-[#FF8F2E]");
       else setBorderColor("border-[#FF3729]");
-  
+
       setResult(data);
       setShowModal(true);
     } catch (error) {
       console.error("Error processing image:", error);
-      setError("Gagal memproses gambar: " + error.message);
-  
+      setError("Gagal memproses gambar: " + (error.response?.data?.message || error.message));
+
       if (process.env.NODE_ENV === "development") {
         const mockResult = {
           kategori: "Non-Organik",
@@ -91,6 +83,7 @@ const Scan = () => {
       setIsLoading(false);
     }
   };
+
   
 
   const handleChooseImage = () => fileInputRef.current?.click();
